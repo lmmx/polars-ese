@@ -1,0 +1,11 @@
+/target
+**/*.rs.bk
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+*.egg-info/
+wheels/
+.ruff_cache/
+site/
+*.sw[op]

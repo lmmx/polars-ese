@@ -1,0 +1,30 @@
+[package]
+name = "polars_ese"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "A Polars plugin for Extremely Static Embeddings (ESE)"
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py310"] }
+polars = { version = "0.46", default-features = false, features = ["dtype-array"] }
+polars-arrow = { version = "0.46", default-features = false }
+pyo3-polars = { version = "0.20", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+# Path dep during development; swap to git/crates.io for release
+ese = { path = "../ese", features = ["rayon", "dim-512", "quant-8"] }
+
+[dev-dependencies]
+cargo-husky = {version = "1.5.0", default-features = false, features = ["user-hooks"]}
+
+[lib]
+name = "_polars_ese"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
