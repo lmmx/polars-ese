@@ -202,6 +202,36 @@ Query: "f-strings and string interpolation syntax"
   PEP  750  sim=0.580  Template Strings
 ```
 
+There is also an attempt to score how well they did at retrieval vs some reasonable expected results:
+
+```bash
+python demo_peps_scored.py  | rg 'Query|Recall|Rank score'
+```
+
+```python
+Query: "typed dictionaries and mappings"
+  Recall@5   : 0.20
+  Rank score : 0.067
+Query: "pattern matching and structural destructuring"
+  Recall@5   : 0.75
+  Rank score : 0.458
+Query: "asynchronous programming with coroutines"
+  Recall@5   : 0.60
+  Rank score : 0.267
+Query: "packaging and dependency specification"
+  Recall@5   : 0.00
+  Rank score : 0.000
+Query: "removing the global interpreter lock"
+  Recall@5   : 0.67
+  Rank score : 0.500
+Query: "f-strings and string interpolation syntax"
+  Recall@5   : 0.40
+  Rank score : 0.200
+Avg Recall@5   : 0.436
+```
+
+## Useful embeddings for retrieval
+
 Retrieval seems to work well. ESE's underlying model (`static-retrieval-mrl-en-v1`)
 was trained by Tom Aarsen (Sentence Transformers) with contrastive loss on query-document pairs,
 specifically for asymmetric retrieval. Despite the zero-parameter runtime,
