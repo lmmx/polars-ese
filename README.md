@@ -46,6 +46,9 @@ Run `just bench` (see `.just/bench.just`) to execute the benchmark during develo
 This is the one used by ese, and from the results it appears that at a larger scale the Polars formb
 becomes +50% slower, pure Rust at 0.027 ms/kT vs. polars-ese at 0.038 ms/kT (but that is still exceptionally fast).
 
+<img width="2143" height="2345" alt="Screenshot from 2026-04-24 15-59-50" src="https://github.com/user-attachments/assets/4d6ab34e-1656-4f7e-be5c-1e58eefa6dd2" />
+
+
 ## Usage
 
 ```python
