@@ -26,6 +26,12 @@ For maximum throughput on your machine, build natively:
 RUSTFLAGS="-C target-cpu=native" maturin develop --release
 ```
 
+## Benchmark
+
+<img width="2137" height="1912" alt="Screenshot from 2026-04-24 13-35-22" src="https://github.com/user-attachments/assets/e68d4ad8-a5c8-4ffd-a6cc-eed684e32c40" />
+
+Run `just bench` (see `.just/bench.just`) to execute the benchmark during development.
+
 ## Usage
 
 ```python
