@@ -3,6 +3,7 @@
 Token counts use bert-base-uncased — the same wordpiece vocab ESE is built on,
 so the per-kT numbers are methodologically aligned with what ESE is measuring.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

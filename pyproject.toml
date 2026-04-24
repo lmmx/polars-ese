@@ -9,7 +9,7 @@ dev = [
 bench = [
   "polars-luxical",
   "rich>=13",
-  "tokenizers>=0.20",
+  "tokenizers>=0.20"
 ]
 test = ["pytest>=8"]
 
@@ -22,7 +22,7 @@ license = {text = "Apache-2.0"}
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "polars>=1.36.0",
-  "polars-distance>=0.5.3",
+  "polars-distance>=0.5.3"
 ]
 authors = [{name = "Louis Maddox", email = "louismmx@gmail.com"}]
 
@@ -36,7 +36,7 @@ release = true
 strip = true
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I", "UP", "RUF"]
+select = ["E", "F", "B", "I", "UP"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]

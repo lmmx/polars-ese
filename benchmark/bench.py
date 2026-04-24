@@ -9,18 +9,18 @@ Both plugins embed the same 708 PEP corpus. We report:
   - Steady-state throughput (best-of-N after warm-up)
   - Top-K retrieval overlap against a fixed query
 """
+
 from __future__ import annotations
 
 import sys
 import time
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 import polars as pl
-from tabulate import tabulate
-
 from dataset import EMB_COL, LABEL_COL, TEXT_COL, load_peps
+from tabulate import tabulate
 
 QUERY = "Typed dictionaries and mappings"
 TOP_K = 10
@@ -60,6 +60,7 @@ class BenchResult:
 # Backend adapters
 # -----------------------------------------------------------------------------
 
+
 def backend_ese():
     from polars_ese import DIMENSIONS, embed_text
 
@@ -82,8 +83,10 @@ def backend_luxical(model_id: str = "DatologyAI/luxical-one"):
 
     def retrieve(df: pl.DataFrame) -> pl.DataFrame:
         return df.luxical.retrieve(
-            query=QUERY, model_name=model_id,
-            embedding_column=EMB_COL, k=TOP_K,
+            query=QUERY,
+            model_name=model_id,
+            embedding_column=EMB_COL,
+            k=TOP_K,
         )
 
     probe = pl.DataFrame({TEXT_COL: ["probe"]})
@@ -95,6 +98,7 @@ def backend_luxical(model_id: str = "DatologyAI/luxical-one"):
 # -----------------------------------------------------------------------------
 # Timing harness
 # -----------------------------------------------------------------------------
+
 
 def time_once(fn: Callable[[], pl.DataFrame]) -> tuple[float, pl.DataFrame]:
     t0 = time.perf_counter()
@@ -139,8 +143,10 @@ def run_backend(name: str, loader: Callable) -> BenchResult:
     else:
         t_hot = t_cold
 
-    say(f"  Steady embed (best of {max(repeats, 1)}): {fmt_time(t_hot)} "
-        f"({n / t_hot:,.0f} docs/s)")
+    say(
+        f"  Steady embed (best of {max(repeats, 1)}): {fmt_time(t_hot)} "
+        f"({n / t_hot:,.0f} docs/s)"
+    )
 
     top = retrieve_fn(embedded).select(LABEL_COL, "similarity")
     top_peps = top[LABEL_COL].to_list()
@@ -148,9 +154,13 @@ def run_backend(name: str, loader: Callable) -> BenchResult:
     say(f"    {top_peps}")
 
     return BenchResult(
-        name=name, dim=dim,
-        cold_start_s=t_cold, steady_state_s=t_hot, repeats=max(repeats, 1),
-        top_k_peps=top_peps, top_1_pep=top_peps[0],
+        name=name,
+        dim=dim,
+        cold_start_s=t_cold,
+        steady_state_s=t_hot,
+        repeats=max(repeats, 1),
+        top_k_peps=top_peps,
+        top_1_pep=top_peps[0],
         top_1_sim=float(top["similarity"][0]),
         note="single run" if repeats <= 1 else "",
     )
@@ -178,17 +188,34 @@ def main() -> None:
     say("Summary")
     say(f"{'=' * 60}")
     rows = [
-        [r.name, r.dim, fmt_time(r.cold_start_s), fmt_time(r.steady_state_s),
-         f"{r.docs_per_sec:,.0f}", r.top_1_pep, f"{r.top_1_sim:.3f}",
-         r.note or "-"]
+        [
+            r.name,
+            r.dim,
+            fmt_time(r.cold_start_s),
+            fmt_time(r.steady_state_s),
+            f"{r.docs_per_sec:,.0f}",
+            r.top_1_pep,
+            f"{r.top_1_sim:.3f}",
+            r.note or "-",
+        ]
         for r in results
     ]
-    say(tabulate(
-        rows,
-        headers=["Backend", "Dim", "Cold", "Hot", "docs/s",
-                 "Top-1 PEP", "Top-1 sim", "Note"],
-        tablefmt="github",
-    ))
+    say(
+        tabulate(
+            rows,
+            headers=[
+                "Backend",
+                "Dim",
+                "Cold",
+                "Hot",
+                "docs/s",
+                "Top-1 PEP",
+                "Top-1 sim",
+                "Note",
+            ],
+            tablefmt="github",
+        )
+    )
 
     if len(results) >= 2:
         slowest = max(r.steady_state_s for r in results)

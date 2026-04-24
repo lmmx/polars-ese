@@ -11,9 +11,9 @@ import argparse
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 import polars as pl
 from dataset import EMB_COL, LABEL_COL, TEXT_COL, TOK_COL, load_peps
@@ -313,7 +313,10 @@ def render_header(df: pl.DataFrame) -> None:
     header = Text.assemble(
         ("polars-ese benchmark\n", "bold cyan"),
         (f"{n_docs} PEPs · {n_tokens:,} tokens · {n_chars:,} chars\n", "dim"),
-        ("tokens counted with bert-base-uncased wordpiece (ESE's own vocab)\n", "dim italic"),
+        (
+            "tokens counted with bert-base-uncased wordpiece (ESE's own vocab)\n",
+            "dim italic",
+        ),
         (f'query: "{QUERY}"', "dim italic"),
     )
     console.print(Panel(header, border_style="cyan", padding=(0, 2)))
@@ -340,9 +343,7 @@ def render_bulk_throughput(results: list[BenchResult]) -> None:
 
     for r in results:
         note = "1 run" if r.single_run else ""
-        ms_kt = (
-            f"{r.ms_per_kt:.4f}" if r.ms_per_kt < 1 else f"{r.ms_per_kt:.3f}"
-        )
+        ms_kt = f"{r.ms_per_kt:.4f}" if r.ms_per_kt < 1 else f"{r.ms_per_kt:.3f}"
         table.add_row(
             r.name,
             "Rust" if r.kind == "native-rust" else "Polars",
