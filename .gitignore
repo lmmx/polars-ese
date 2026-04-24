@@ -1,4 +1,4 @@
-/target
+target/
 **/*.rs.bk
 __pycache__/
 *.py[cod]
@@ -9,3 +9,4 @@ wheels/
 .ruff_cache/
 site/
 *.sw[op]
+*cache/

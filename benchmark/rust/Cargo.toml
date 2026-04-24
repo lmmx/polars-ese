@@ -1,0 +1,16 @@
+[package]
+name = "bench_ese"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "bench_ese"
+path = "src/bench_ese.rs"
+
+[dependencies]
+ese = { path = "../../../ese", features = ["rayon", "dim-512", "quant-8"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

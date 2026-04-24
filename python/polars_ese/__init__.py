@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 if parse_version(pl.__version__) < parse_version("0.20.16"):
     from polars.utils.udfs import _get_shared_lib_location
+
     lib: str | Path = _get_shared_lib_location(__file__)
 else:
     lib = Path(__file__).parent
@@ -25,14 +26,13 @@ else:
 __all__ = ["embed_text", "DIMENSIONS"]
 
 
-def _plug(expr: IntoExpr, **kwargs) -> pl.Expr:
+def _plug(expr: IntoExpr) -> pl.Expr:
     func_name = inspect.stack()[1].function
     return register_plugin_function(
         plugin_path=lib,
         function_name=func_name,
         args=parse_into_expr(expr),
         is_elementwise=True,
-        kwargs=kwargs,
     )
 
 
@@ -43,7 +43,7 @@ def embed_text(expr: IntoExpr) -> pl.Expr:
     truncated/quantized per build features). No model loading or registry
     required — the weights are in the binary.
     """
-    return _plug(expr, _placeholder=None)
+    return _plug(expr)
 
 
 @register_dataframe_namespace("ese")

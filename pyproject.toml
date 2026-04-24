@@ -2,24 +2,45 @@
 requires = ["maturin>=1.0,<2.0", "patchelf>=0.17.2.4; sys_platform == 'linux'", "polars>=1.36.0"]
 build-backend = "maturin"
 
+[dependency-groups]
+dev = [
+  "maturin[patchelf]>=1.13"
+]
+bench = [
+  "polars-luxical",
+  "rich>=13",
+  "tokenizers>=0.20",
+]
+test = ["pytest>=8"]
+
 [project]
 name = "polars_ese"
 version = "0.1.0"
 description = "Polars plugin for Extremely Static Embeddings (ESE)"
 readme = "README.md"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.11,<3.14"
 dependencies = [
   "polars>=1.36.0",
   "polars-distance>=0.5.3",
 ]
 authors = [{name = "Louis Maddox", email = "louismmx@gmail.com"}]
 
-[dependency-groups]
-test = ["pytest>=8"]
+[project.urls]
+Repository = "https://github.com/lmmx/polars-ese"
 
 [tool.maturin]
 module-name = "polars_ese._polars_ese"
 python-source = "python"
 release = true
 strip = true
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+
+[tool.uv]
+default-groups = "all"

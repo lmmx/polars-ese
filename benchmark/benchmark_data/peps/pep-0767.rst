@@ -1,0 +1,634 @@
+PEP: 767
+Title: Annotating Read-Only Attributes
+Author: Łukasz Modzelewski
+Sponsor: Carl Meyer <carl@oddbird.net>
+Discussions-To: https://discuss.python.org/t/pep-767-annotating-read-only-attributes/73408
+Status: Draft
+Type: Standards Track
+Topic: Typing
+Created: 18-Nov-2024
+Python-Version: 3.15
+Post-History: `09-Oct-2024 <https://discuss.python.org/t/expanding-readonly-to-normal-classes-protocols/67359>`__
+              `05-Dec-2024 <https://discuss.python.org/t/pep-767-annotating-read-only-attributes/73408>`__
+
+
+Abstract
+========
+
+:pep:`705` introduced the :external+py3.13:data:`typing.ReadOnly` type qualifier
+to allow defining read-only :class:`typing.TypedDict` items.
+
+This PEP proposes using ``ReadOnly`` in :term:`annotations <annotation>` of class and protocol
+:term:`attributes <attribute>`, as a single concise way to mark them read-only.
+
+Akin to :pep:`705`, it makes no changes to setting attributes at runtime. Correct
+usage of read-only attributes is intended to be enforced only by static type checkers.
+
+
+Terminology
+===========
+
+This PEP uses "read-only" to describe attributes which may be read,
+but not assigned to (except in limited cases to support initialization) or deleted.
+
+
+Motivation
+==========
+
+The Python type system lacks a single concise way to mark an attribute read-only.
+This feature is present in other statically and gradually typed languages
+(such as `C# <https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/readonly>`__
+or `TypeScript <https://www.typescriptlang.org/docs/handbook/2/objects.html#readonly-properties>`__),
+and is useful for removing the ability to assign to or delete an attribute
+at a type checker level, as well as defining a broad interface for structural subtyping.
+
+
+Classes
+-------
+
+Today, there are three major ways of achieving read-only attributes, honored by type checkers:
+
+* annotating the attribute with :data:`typing.Final`::
+
+    class Foo:
+        number: Final[int]
+
+        def __init__(self, number: int) -> None:
+            self.number = number
+
+
+    class Bar:
+        def __init__(self, number: int) -> None:
+            self.number: Final = number
+
+  - Supported by :mod:`dataclasses` (and type checkers since `typing#1669 <https://github.com/python/typing/pull/1669>`_).
+  - Overriding ``number`` is not possible - the specification of ``Final``
+    imposes that the name cannot be overridden in subclasses.
+
+* marking the attribute "_internal", and exposing it via read-only ``@property``::
+
+    class Foo:
+        _number: int
+
+        def __init__(self, number: int) -> None:
+            self._number = number
+
+        @property
+        def number(self) -> int:
+            return self._number
+
+  - Overriding ``number`` is possible, but limited to using ``@property``. [#overriding_property]_
+  - Read-only at runtime. [#runtime]_
+  - Requires extra boilerplate.
+  - Supported by :mod:`dataclasses`, but does not compose well - the synthesized
+    ``__init__`` and ``__repr__`` will use ``_number`` as the parameter/attribute name.
+
+* using a "freezing" mechanism, such as :func:`dataclasses.dataclass` or :class:`typing.NamedTuple`::
+
+    @dataclass(frozen=True)
+    class Foo:
+        number: int  # implicitly read-only
+
+
+    class Bar(NamedTuple):
+        number: int  # implicitly read-only
+
+  - Overriding ``number`` is possible in the ``@dataclass`` case.
+  - Read-only at runtime. [#runtime]_
+  - No per-attribute control - these mechanisms apply to the whole class.
+  - Frozen dataclasses incur some runtime overhead.
+  - Most classes do not need indexing, iteration, or concatenation, inherited from ``NamedTuple``.
+
+.. _protocols:
+
+Protocols
+---------
+
+Suppose a :class:`~typing.Protocol` member ``name: T`` defining two requirements:
+
+1. ``hasattr(obj, "name")``
+2. ``isinstance(obj.name, T)``
+
+Those requirements are satisfiable at runtime by all of the following:
+
+* an object with an attribute ``name: T``,
+* a class with a class variable ``name: ClassVar[T]``,
+* an instance of the class above,
+* an object with a ``@property`` ``def name(self) -> T``,
+* an object with a custom descriptor, such as :func:`functools.cached_property`.
+
+The current `typing spec <https://typing.python.org/en/latest/spec/protocol.html#protocol-members>`_
+allows creation of such protocol members using (abstract) properties::
+
+    class HasName(Protocol):
+        @property
+        def name(self) -> T: ...
+
+This syntax has several drawbacks:
+
+* It is somewhat verbose.
+* It is not obvious that the quality conveyed here is the read-only character of a property.
+* It is not composable with :external+typing:term:`type qualifiers <type qualifier>`.
+* Currently, Pyright disagrees that some of the above five objects
+  are assignable to this structural type.
+  `[Pyright] <https://pyright-play.net/?pyrightVersion=1.1.404&pythonVersion=3.13&strict=true&code=GYJw9gtgBAhgRgYygSwgBzCALrOBnLEGBLCAUywAswATAKFEimAFcA7EsMAGzxXUw4ExSmRoB9NODRlsATwbhoWOWmRsA5vwzYoAYW4w8eAGowQAGigAFcFjAIeV4Opjc6HhIeNQAEkYAxLgAKWzB7R24ASgAuOigEqAABKTAZeXjEpPgCIhJyKlpMhJoyYGYQvDJuYCioAFoAPhQ2LBioADoujzoAYlhjZA02eGRuZBUeryM%2BILAAQSxCZDgWLDI4xIqwdvUsT29ZrjD0lU2s1NOFLdLy4Erq2obmvfaQChYQNigABgOZqBzAwzMwgc4Je47fSHUEAbT2AF0oABeX7-HxzAAiZDwCBAyDQ9jBxWSwgQogkl1kkxuZW2wSqNTqTRabSg7ywn2%2Bfzo0wxx2k1LkejAADdzMgYK1wckqRlaXcHkznlA4FxuG8Pl9AW4quijmAAJJscXjGgyyHtXL6qAAOTAcxlcHMVsIPTAcAAVu1-Hg5nQPZ6UYCuItlqt1sE6lB%2BmAANYBr3BuYnIVRxKxhOB5NcYHGUFbGNQeOJoOooEw8zphKZ0s5sDY3H4wmYdO17PlgVpIUi8X4qVYNvFrNJztGk1uZA0as1qCyEB11H2uYzwtF%2BeLu1gNhkNdr-objwHgAeaHGCAm2ncNrmYfxEbIhvQ3GCvrmsRJltZN67VyfZ9fQIuA-LYUkFeVEluelGSeFlXnZLVuR-MA81Mcx-xfN9gItLh2lQuFEWDHk%2BQNRs8QJIkMMAv1sJJJIyQpSRwJpSC6UhBlHmZF5pQQzltWIw4QzAVN5F7CUByorCwBAi5mOuVjFTADjlRZNUeE1PjvgCXUyGQ41TSnSSgOknCoWtOgkhcEZ3BIrc5iMmiTJJZ0wSga0gA>`_
+  `[mypy] <https://mypy-play.net/?mypy=1.17.1&python=3.13&flags=strict&gist=12d556bb6ef4a9a49ff4ed4776604750>`_
+
+Rationale
+=========
+
+These problems can be resolved by an attribute-level type qualifier.
+``ReadOnly`` has been chosen for this role, as its name conveys the intent well,
+and the newly proposed changes complement its semantics defined in :pep:`705`.
+
+A class with a read-only instance attribute can now be defined as::
+
+    from typing import ReadOnly
+
+    class Member:
+        def __init__(self, id: int) -> None:
+            self.id: ReadOnly[int] = id
+
+...and the protocol described in :ref:`protocols` is now just::
+
+    from typing import Protocol, ReadOnly
+
+    class HasName(Protocol):
+        name: ReadOnly[str]
+
+* A subclass of ``Member`` can redefine ``.id`` as a writable attribute or a
+  :term:`descriptor`. It can also :external+typing:term:`narrow` its type.
+* The ``HasName`` protocol has a more succinct definition,
+  and can be implemented with writable instance/class attributes or custom descriptors.
+
+
+Specification
+=============
+
+Usage
+-----
+
+The :external+py3.13:data:`typing.ReadOnly` :external+typing:term:`type qualifier`
+becomes a valid annotation for :term:`attributes <attribute>` of nominal classes
+and protocols. It can be used at class-level and within ``__init__`` to mark
+individual attributes read-only::
+
+    class Book:
+        id: ReadOnly[int]
+
+        def __init__(self, id: int, name: str) -> None:
+            self.id = id
+            self.name: ReadOnly[str] = name
+
+Use of bare ``ReadOnly`` (without ``[<type>]``) is not allowed.
+Type checkers should error on any attempt to assign to or delete an attribute
+annotated with ``ReadOnly``, except in contexts described under :ref:`initialization`.
+
+It should also be an error to delete an attribute annotated as ``Final``.
+(This is not currently specified.)
+
+Use of ``ReadOnly`` in annotations at other sites where it currently has no meaning
+(such as local/global variables or function parameters) is considered out of scope
+for this PEP, and remains forbidden.
+
+``ReadOnly`` does not influence the mutability of the attribute's value. Immutable
+protocols and :term:`ABCs <abstract base class>` (such as those in :mod:`collections.abc`)
+may be used in combination with ``ReadOnly`` to forbid mutation of those values
+at a type checker level:
+
+.. code-block:: python
+
+    from collections import abc
+    from dataclasses import dataclass
+    from typing import Protocol, ReadOnly
+
+
+    @dataclass
+    class Game:
+        name: str
+
+
+    class HasGames[T: abc.Collection[Game]](Protocol):
+        games: ReadOnly[T]
+
+
+    def add_games(shelf: HasGames[list[Game]]) -> None:
+        shelf.games.append(Game("Half-Life"))  # ok: list is mutable
+        shelf.games[-1].name = "Black Mesa"    # ok: "name" is not read-only
+        shelf.games = []                       # error: "games" is read-only
+        del shelf.games                        # error: "games" is read-only and cannot be deleted
+
+
+    def read_games(shelf: HasGames[abc.Sequence[Game]]) -> None:
+        shelf.games.append(...)             # error: "Sequence" has no attribute "append"
+        shelf.games[0].name = "Blue Shift"  # ok: "name" is not read-only
+        shelf.games = []                    # error: "games" is read-only
+
+
+All instance attributes of frozen dataclasses and named tuples should be
+implied to be read-only. Type checkers may inform that annotating such attributes
+with ``ReadOnly`` is redundant, but it should not be seen as an error:
+
+.. code-block:: python
+
+    from dataclasses import dataclass
+    from typing import Final, NewType, ReadOnly
+
+
+    @dataclass(frozen=True)
+    class Point:
+        x: int            # implicitly read-only
+        y: ReadOnly[int]  # ok, redundant
+
+
+    uint = NewType("uint", int)
+
+
+    @dataclass(frozen=True)
+    class UnsignedPoint(Point):
+        x: ReadOnly[uint]  # ok, redundant; narrower type
+        y: Final[uint]     # not redundant, Final imposes extra restrictions; narrower type
+
+.. _initialization:
+
+Initialization
+--------------
+
+Assignment to a read-only attribute of a nominal class can only occur in the class
+declaring the attribute and its nominal subclasses, at sites described below.
+There is no restriction to how many times the attribute can be assigned to.
+
+Type checkers may choose to warn on read-only attributes which could be left uninitialized
+after an instance is created (except in :external+typing:term:`stubs <stub>`,
+protocols or ABCs)::
+
+    class Patient:
+        id: ReadOnly[int]    # error: "id" is not initialized on all code paths
+        name: ReadOnly[str]  # error: "name" is never initialized
+
+        def __init__(self) -> None:
+            if random.random() > 0.5:
+                self.id = 123
+
+
+    class HasName(Protocol):
+        name: ReadOnly[str]  # ok
+
+Instance Attributes
+'''''''''''''''''''
+
+Assignment to a read-only instance attribute must be allowed in the following contexts:
+
+* In ``__init__``, on the instance of the declaring class received as
+  the first parameter (usually ``self``).
+* In ``__new__`` and ``@classmethod``\ s, on instances of the declaring class created via:
+
+  - a call to ``super().__new__()``,
+  - a call to ``__new__`` on any object of type ``type[T]``,
+    where ``T`` is a *nominal supertype* of the declaring class.
+
+* At declaration in the class scope.
+
+Additionally, a type checker may choose to allow the assignment
+in ``__new__`` and ``@classmethod``\ s, on instances of the declaring class,
+without regard to the origin of the instance.
+(This choice trades soundness, as the instance may already be initialized,
+for the simplicity of implementation.)
+
+.. code-block:: python
+
+    from collections import abc
+    from typing import ReadOnly
+
+
+    class Band:
+        name: str
+        songs: ReadOnly[list[str]]
+
+        def __init__(self, name: str, songs: abc.Iterable[str] | None = None) -> None:
+            self.name = name
+            self.songs = []
+
+            if songs is not None:
+                self.songs = list(songs)  # multiple assignments are fine
+
+        def clear(self) -> None:
+            # error: assignment to read-only "songs" outside initialization
+            self.songs = []
+
+
+    band = Band(name="Bôa", songs=["Duvet"])
+    band.name = "Python"           # ok: "name" is not read-only
+    band.songs = []                # error: "songs" is read-only
+    band.songs.append("Twilight")  # ok: list is mutable
+
+.. code-block:: python
+
+    # a simplified immutable Fraction class
+    class Fraction:
+        numerator: ReadOnly[int]
+        denominator: ReadOnly[int]
+
+        def __new__(
+            cls,
+            numerator: str | int | float | Decimal | Rational = 0,
+            denominator: int | Rational | None = None
+        ) -> Self:
+            self = super().__new__(cls)
+
+            if denominator is None:
+                if type(numerator) is int:
+                    self.numerator = numerator
+                    self.denominator = 1
+                    return self
+
+                elif isinstance(numerator, Rational): ...
+
+            else: ...
+
+        @classmethod
+        def from_float(cls, f: float, /) -> Self:
+            self = super().__new__(cls)
+            self.numerator, self.denominator = f.as_integer_ratio()
+            return self
+
+When a class-level declaration has an initializing value, it can serve as a `flyweight <https://en.wikipedia.org/wiki/Flyweight_pattern>`__
+default for instances:
+
+.. code-block:: python
+
+    class Patient:
+        number: ReadOnly[int] = 0
+
+        def __init__(self, number: int | None = None) -> None:
+            if number is not None:
+                self.number = number
+
+.. note::
+    This is possible only in classes without :data:`~object.__slots__`.
+    An attribute included in slots cannot have a class-level default.
+
+Class Attributes
+''''''''''''''''
+
+Read-only class attributes are attributes annotated as both ``ReadOnly`` and ``ClassVar``.
+Assignment to such attributes must be allowed in the following contexts:
+
+* At declaration in the class scope.
+* In ``__init_subclass__``, on the class object received as the first parameter (usually ``cls``).
+
+.. code-block:: python
+
+    class URI:
+        protocol: ReadOnly[ClassVar[str]] = ""
+
+        def __init_subclass__(cls, protocol: str = "") -> None:
+            cls.protocol = protocol
+
+    class File(URI, protocol="file"): ...
+
+Protocols
+---------
+
+In a protocol attribute declaration, ``name: ReadOnly[T]`` indicates that values
+that inhabit the protocol must support ``.name`` access, and the returned value
+is assignable to ``T``:
+
+.. code-block:: python
+
+    class HasName(Protocol):
+        name: ReadOnly[str]
+
+
+    class NamedAttr:
+        name: str
+
+    class NamedProp:
+        @property
+        def name(self) -> str: ...
+
+    class NamedClassVar:
+        name: ClassVar[str]
+
+    class NamedDescriptor:
+        @cached_property
+        def name(self) -> str: ...
+
+    # all of the following are ok
+    has_name: HasName
+    has_name = NamedAttr()
+    has_name = NamedProp()
+    has_name = NamedClassVar
+    has_name = NamedClassVar()
+    has_name = NamedDescriptor()
+
+Read-only protocol attributes may not be assigned to or deleted in any context.
+
+Note that when inheriting from a protocol to `explicitly declare its implementation <https://typing.python.org/en/latest/spec/protocol.html#explicitly-declaring-implementation>`__,
+for the purpose of applying rules regarding read-only attributes (that the protocol may define),
+the protocol should be treated as if it was a nominal class.
+In particular, this means that subclasses *can* initialize read-only attributes
+that have been defined by the protocol.
+
+Type checkers should not assume that access to a protocol's read-only attributes
+is supported by the protocol's type (``type[HasName]``). Even if an attribute
+exists on the protocol's type, no assumptions should be made about its type.
+
+Accurately modeling the behavior and type of ``type[HasName].name`` is difficult,
+therefore it was left out from this PEP to reduce its complexity;
+future enhancements to the typing specification may refine this behavior.
+
+
+Subtyping
+---------
+
+The inability to assign to or delete read-only attributes makes them covariant.
+This has a few subtyping implications. Borrowing from :pep:`705#inheritance`:
+
+* Read-only attributes can be redeclared by a subclass as writable attributes,
+  descriptors or class variables::
+
+    @dataclass
+    class HasTitle:
+        title: ReadOnly[str]
+
+
+    @dataclass
+    class Game(HasTitle):
+        title: str
+        year: int
+
+
+    game = Game(title="DOOM", year=1993)
+    game.year = 1994
+    game.title = "DOOM II"  # ok: attribute is no longer read-only
+
+
+    class TitleProxy(HasTitle):
+        @functools.cached_property
+        def title(self) -> str: ...
+
+
+    class SharedTitle(HasTitle):
+        title: ClassVar[str] = "Still Grey"
+
+* If a read-only attribute is not redeclared, it remains read-only::
+
+    class Game(HasTitle):
+        year: int
+
+        def __init__(self, title: str, year: int) -> None:
+            super().__init__(title)  # preferred
+            self.title = title       # ok
+            self.year = year
+
+
+    game = Game(title="Robot Wants Kitty", year=2010)
+    game.title = "Robot Wants Puppy"  # error: "title" is read-only
+
+* Subclasses can :external+typing:term:`narrow` the type of read-only attributes::
+
+    from collections import abc
+
+    class GameCollection(Protocol):
+        games: ReadOnly[abc.Collection[Game]]
+
+
+    @dataclass
+    class GameSeries(GameCollection):
+        name: str
+        games: ReadOnly[list[Game]]  # ok: list[Game] is assignable to Collection[Game]
+
+
+Interaction with Other Type Qualifiers
+--------------------------------------
+
+``ReadOnly`` can be used with ``ClassVar`` and ``Annotated`` in any nesting order:
+
+.. code-block:: python
+
+    class Foo:
+        foo: ClassVar[ReadOnly[str]] = "foo"
+        bar: Annotated[ReadOnly[int], Gt(0)]
+
+.. code-block:: python
+
+    class Foo:
+        foo: ReadOnly[ClassVar[str]] = "foo"
+        bar: ReadOnly[Annotated[int, Gt(0)]]
+
+This is consistent with the interaction of ``ReadOnly`` and :class:`typing.TypedDict`
+defined in :pep:`705`.
+
+``Final`` can be used to (re)declare an attribute which is already read-only,
+whether due to mechanisms such as ``NamedTuple``, or because a parent class
+declared it as ``ReadOnly``.
+
+Semantics of ``Final`` take precedence over the semantics of read-only attributes;
+combining ``ReadOnly`` and ``Final`` is redundant,
+and type checkers may choose to warn or error on the redundancy.
+
+
+Backwards Compatibility
+=======================
+
+This PEP introduces new contexts where ``ReadOnly`` is valid. Programs inspecting
+those places will have to change to support it. This is expected to mainly affect type checkers.
+
+However, caution is advised while using the backported ``typing_extensions.ReadOnly``
+in older versions of Python. Mechanisms inspecting annotations may behave incorrectly
+when encountering ``ReadOnly``; in particular, the ``@dataclass`` decorator
+which `looks for <https://docs.python.org/3/library/dataclasses.html#class-variables>`_
+``ClassVar`` may mistakenly treat ``ReadOnly[ClassVar[...]]`` as an instance attribute.
+
+To avoid issues with introspection, use ``ClassVar[ReadOnly[...]]`` instead of ``ReadOnly[ClassVar[...]]``.
+
+
+Security Implications
+=====================
+
+There are no known security consequences arising from this PEP.
+
+
+How to Teach This
+=================
+
+Suggested changes to the :mod:`typing` module documentation,
+following the footsteps of :pep:`705#how-to-teach-this`:
+
+* Add this PEP to the others listed.
+* Link :external+py3.13:data:`typing.ReadOnly` to this PEP.
+* Update the description of ``typing.ReadOnly``:
+
+    A special typing construct to mark an attribute of a class or an item of
+    a ``TypedDict`` as read-only.
+
+* Add a standalone entry for ``ReadOnly`` under the
+  `type qualifiers <https://typing.python.org/en/latest/spec/qualifiers.html>`_ section:
+
+    The ``ReadOnly`` type qualifier in class attribute annotations indicates
+    that the attribute of the class may be read, but not assigned to or ``del``\ eted.
+    For usage in ``TypedDict``, see `ReadOnly <https://typing.python.org/en/latest/spec/typeddict.html#typing-readonly-type-qualifier>`_.
+
+
+Rejected Ideas
+==============
+
+Clarifying Interaction of ``@property`` and Protocols
+-----------------------------------------------------
+
+The :ref:`protocols` section mentions an inconsistency between type checkers in
+the interpretation of properties in protocols. The problem could be fixed
+by amending the typing specification, clarifying what implements the read-only
+quality of such properties.
+
+This PEP makes ``ReadOnly`` a better alternative for defining read-only attributes
+in protocols, superseding the use of properties for this purpose.
+
+
+Assignment Only in ``__init__`` and Class Scope
+-----------------------------------------------
+
+An earlier version of this PEP specified that read-only attributes could only be
+assigned to in ``__init__`` and the class' body. This decision was based on
+the specification of C#'s `readonly <https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/readonly>`__.
+
+Later revision of this PEP loosened the restriction to also include ``__new__``,
+``__init_subclass__`` and ``@classmethod``\ s, as it was revealed that the initial
+version would severely limit the usability of ``ReadOnly`` within immutable classes,
+which typically do not define ``__init__``.
+
+Allowing Bare ``ReadOnly`` With Initializing Value
+--------------------------------------------------
+
+An earlier version of this PEP allowed the use of bare ``ReadOnly`` when the attribute
+being annotated had an initializing value. The type of the attribute was supposed
+to be determined by type checkers using their usual type inference rules.
+
+`This thread <https://github.com/python/peps/pull/4127#discussion_r1849261608>`_
+surfaced a few non-trivial issues with this feature, like undesirable inference
+of ``Literal[...]`` from literal values, differences in type checker inference rules,
+or complexity of implementation due to class-level and ``__init__``-level assignments.
+We decided to always require a type for ``ReadOnly[...]``, as *explicit is better than implicit*.
+
+
+Footnotes
+=========
+
+.. [#overriding_property]
+    Pyright in strict mode disallows non-property overrides.
+    Mypy permits an override with a plain attribute.
+    Non-property overrides are technically unsafe, as they may break class-level ``Foo.number`` access.
+    `[Pyright playground] <https://pyright-play.net/?strict=true&code=MYGwhgzhAEBiD28BcBYAUNT0D6A7ArgLYBGApgE5LQCWuALuultACakBmO2t1d22ACgikQ7ADTQCJClVp0AlNAC0APmgA5eLlKoMzLMNEA6PETLloAXklmKjPZgACAB3LxnFOgE8mWNpylzIRF2RVUael19LHJSOnxyXGhDdhNAuzR7UEgYACEwcgEEeHkorHTKCIY0IA>`_
+    `[mypy playground] <https://mypy-play.net/?mypy=latest&python=3.12&flags=strict&gist=6f860a865c5d13cce07d6cbb08b9fb85>`_
+
+.. [#runtime]
+    This PEP focuses solely on type-checking behavior. Nevertheless, it should
+    be desirable the name is read-only at runtime.
+
+
+Copyright
+=========
+
+This document is placed in the public domain or under the
+CC0-1.0-Universal license, whichever is more permissive.

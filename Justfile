@@ -1,4 +1,5 @@
 import ".just/ship.just"
+import ".just/bench.just"
 
 set shell := ["bash", "-cu"]
 
