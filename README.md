@@ -28,6 +28,8 @@ RUSTFLAGS="-C target-cpu=native" maturin develop --release
 
 ## Benchmark
 
+### Benchmark 1: PEPs
+
 <img width="2137" height="1912" alt="Screenshot from 2026-04-24 13-35-22" src="https://github.com/user-attachments/assets/e68d4ad8-a5c8-4ffd-a6cc-eed684e32c40" />
 
 - `ese` crate built at 512D in Q8, measuring 0.0165 ms/kT
@@ -38,6 +40,11 @@ Against previous best, `ese` is 30x faster than Luxical One,
 and against current best in the same benchmark `ese` is 90x faster.
 
 Run `just bench` (see `.just/bench.just`) to execute the benchmark during development.
+
+### Benchmark 2: GooAQ
+
+This is the one used by ese, and from the results it appears that at a larger scale the Polars formb
+becomes +50% slower, pure Rust at 0.027 ms/kT vs. polars-ese at 0.038 ms/kT (but that is still exceptionally fast).
 
 ## Usage
 
