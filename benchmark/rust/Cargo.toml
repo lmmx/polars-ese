@@ -2,6 +2,10 @@
 name = "bench_ese"
 path = "src/bench_ese.rs"
 
+[[bin]]
+name = "bench_ese_gooaq"
+path = "src/bench_ese_gooaq.rs"
+
 [dependencies]
 ese = {path = "../../../ese", features = ["rayon", "dim-512", "quant-8"]}
 
