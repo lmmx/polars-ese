@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import List
 
 import polars as pl
 from polars_ese import DIMENSIONS, embed_text
@@ -42,8 +41,7 @@ EXPECTED = {
 def load_peps() -> pl.DataFrame:
     if not PEP_DIR.exists():
         sys.exit(
-            f"PEP corpus not found at {PEP_DIR}.\n"
-            f"Run: bash benchmark/download_peps.sh"
+            f"PEP corpus not found at {PEP_DIR}.\nRun: bash benchmark/download_peps.sh"
         )
 
     rows = []
@@ -69,7 +67,7 @@ def load_peps() -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-def score_query(query: str, retrieved: List[int], expected: List[int]) -> dict:
+def score_query(query: str, retrieved: list[int], expected: list[int]) -> dict:
     expected_set = {x for x in expected if x != 0}
     retrieved_set = set(retrieved)
 
@@ -129,11 +127,7 @@ def main() -> None:
             if len(title) > (WIDTH + 10):
                 title = title[: (WIDTH + 7)] + "…"
 
-            print(
-                f"  PEP {row['pep']:>4}  "
-                f"sim={row['similarity']:.3f}  "
-                f"{title}"
-            )
+            print(f"  PEP {row['pep']:>4}  sim={row['similarity']:.3f}  {title}")
 
         print()
         print(f"  Recall@5   : {score['recall']:.2f}")
