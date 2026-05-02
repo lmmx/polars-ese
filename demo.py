@@ -3,6 +3,7 @@
 Embeds four short texts, runs three queries against them, and prints the ranked
 results with a short explanation of what you're looking at.
 """
+
 from __future__ import annotations
 
 import polars as pl
@@ -52,5 +53,5 @@ for q in queries:
     print(f'\nQuery: "{q}"')
     print(results)
     top = results.row(0, named=True)
-    print(f'  → Top hit: id={top["id"]} (similarity {top["similarity"]:.3f})')
+    print(f"  → Top hit: id={top['id']} (similarity {top['similarity']:.3f})")
     print(f'    "{top["text"]}"')

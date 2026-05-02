@@ -34,8 +34,7 @@ TOP_K = 5
 def load_peps() -> pl.DataFrame:
     if not PEP_DIR.exists():
         sys.exit(
-            f"PEP corpus not found at {PEP_DIR}.\n"
-            f"Run: bash benchmark/download_peps.sh"
+            f"PEP corpus not found at {PEP_DIR}.\nRun: bash benchmark/download_peps.sh"
         )
     rows = []
     for path in sorted(PEP_DIR.glob("pep-*.rst")):
@@ -80,9 +79,7 @@ def main() -> None:
             title = row["title"]
             if len(title) > (WIDTH + 10):
                 title = title[: (WIDTH + 7)] + "…"
-            print(
-                f"  PEP {row['pep']:>4}  " f"sim={row['similarity']:.3f}  " f"{title}"
-            )
+            print(f"  PEP {row['pep']:>4}  sim={row['similarity']:.3f}  {title}")
         print()
 
 

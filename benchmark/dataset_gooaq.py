@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import polars as pl
 
 DATA_DIR = Path(__file__).parent / "benchmark_data" / "gooaq"
@@ -12,11 +13,11 @@ FILES = [
     DATA_DIR / "gooaq_0.parquet",
 ]
 
+
 def load_gooaq() -> pl.DataFrame:
     if not DATA_DIR.exists():
         raise SystemExit(
-            f"GooAQ dataset missing at {DATA_DIR}.\n"
-            f"Run: just bench-prep-gooaq"
+            f"GooAQ dataset missing at {DATA_DIR}.\nRun: just bench-prep-gooaq"
         )
 
     frames: list[pl.DataFrame] = []

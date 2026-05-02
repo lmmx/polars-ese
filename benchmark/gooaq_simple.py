@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 
 import polars as pl
-import polars_ese
 from dataset_gooaq import TEXT_COL, load_gooaq
 
 # -----------------------------------------------------------------------------
@@ -37,7 +36,7 @@ def bench_encode_single(sentences: list[str]) -> None:
     dt = time.perf_counter() - t0
 
     print("\n[encode_single]")
-    print(f"short_qps: {iters/dt:.2f}")
+    print(f"short_qps: {iters / dt:.2f}")
 
 
 # -----------------------------------------------------------------------------
@@ -99,7 +98,7 @@ def bench_encode_by_length(sentences: list[str]) -> None:
             _ = pl.DataFrame({TEXT_COL: [trimmed]}).ese.embed(columns=TEXT_COL)
         dt = time.perf_counter() - t0
 
-        print(f"chars={char_len:<5}  ops/s={iters/dt:,.0f}")
+        print(f"chars={char_len:<5}  ops/s={iters / dt:,.0f}")
 
 
 # -----------------------------------------------------------------------------

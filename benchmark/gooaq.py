@@ -34,7 +34,7 @@ console = Console()
 EMB_COL = "embedding"
 TOK_COL = "token_count"
 
-DEFAULT_N_BULK = 100_000   # matches the Luxical paper's FineWeb throughput sample
+DEFAULT_N_BULK = 100_000  # matches the Luxical paper's FineWeb throughput sample
 BATCH_SIZES = [1, 16, 64, 256, 1000, 10_000]
 LENGTH_TARGETS = [10, 50, 100, 250, 500, 1000, 2000]
 FAST_THRESHOLD_S = 1.0
@@ -203,7 +203,9 @@ def run_plugin_backend(
         embed_fn, dim = loader()
 
     # --- Bulk: cold + hot ---
-    with console.status(f"[dim]Cold embed ({name}, {n_docs:,} rows)…[/dim]", spinner="dots"):
+    with console.status(
+        f"[dim]Cold embed ({name}, {n_docs:,} rows)…[/dim]", spinner="dots"
+    ):
         t_cold, _ = _time_once(lambda: embed_fn(df_bulk))
 
     is_fast = t_cold < FAST_THRESHOLD_S
@@ -217,7 +219,9 @@ def run_plugin_backend(
         spinner="dots",
     ):
         if repeats > 0:
-            t_hot = min(_time_once(lambda: embed_fn(df_bulk))[0] for _ in range(repeats))
+            t_hot = min(
+                _time_once(lambda: embed_fn(df_bulk))[0] for _ in range(repeats)
+            )
         else:
             t_hot = t_cold
 

@@ -10,7 +10,7 @@ bench = [
   "polars-luxical",
   "rich>=13",
   "tokenizers>=0.20",
-  "datasets",
+  "datasets"
 ]
 test = ["pytest>=8"]
 
