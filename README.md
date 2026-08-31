@@ -55,14 +55,16 @@ becomes +50% slower, pure Rust at 0.027 ms/kT vs. polars-ese at 0.038 ms/kT (but
 import polars as pl
 from polars_ese import embed_text, DIMENSIONS
 
-df = pl.DataFrame({
-    "id": [1, 2, 3],
-    "text": [
-        "Polars is a fast DataFrame library",
-        "Static embeddings skip transformer inference entirely",
-        "The Eiffel Tower is in Paris",
-    ],
-})
+df = pl.DataFrame(
+    {
+        "id": [1, 2, 3],
+        "text": [
+            "Polars is a fast DataFrame library",
+            "Static embeddings skip transformer inference entirely",
+            "The Eiffel Tower is in Paris",
+        ],
+    }
+)
 
 embedded = df.with_columns(embed_text("text").alias("embedding"))
 print(embedded)
