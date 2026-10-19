@@ -7,7 +7,7 @@ name = "bench_ese_gooaq"
 path = "src/bench_ese_gooaq.rs"
 
 [dependencies]
-ese = {path = "../../../ese", features = ["rayon", "dim-512", "quant-8"]}
+ese = { path = "../../../ese", features = ["rayon", "dim-512", "quant-8"] }
 
 [package]
 name = "bench_ese"
